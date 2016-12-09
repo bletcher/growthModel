@@ -1,6 +1,11 @@
 library(tidyverse)
 library(jagsUI)
 
+# truncated normal dist
+rtnorm <- function(n, mean, sd, a = -Inf, b = Inf){
+       qnorm(runif(n, pnorm(a, mean, sd), pnorm(b, mean, sd)), mean, sd)
+       }
+
 nInd <- 100
 nOcc <- 10
 nRivers <- 1
@@ -14,15 +19,15 @@ initSize <- 65
 initSizeSD <- 4
 
 # residual growth error
-gSD <- 2
+gSD <- 1
 
 # 1st column is mean growth, second col is size-dep coeff 
 # rows are seasons
 growth <- matrix( 
-  c( 25, 5, 
+  c( 30, 5, 
      10, 0,
-     8, -2,
-     4, -1
+     8, -1,
+     4, 0
   ), nrow=nSeasons, byrow=TRUE)
   
 # dat holds body sizes  
@@ -31,12 +36,13 @@ dat <- matrix(NA,nInd,nOcc)#, dimnames=list(1:nOcc, 1:T))
 meanLen <- matrix(NA,nOcc,nRivers+1)
 sdLen <- matrix(NA,nOcc,nRivers+1)
 
-dat[,1] <- rnorm(nInd,initSize,initSizeSD) # preload occ 1 
+dat[,1] <- rtnorm(nInd,initSize,initSizeSD,58,70) # preload occ 1 
 
 # individual random slope multiplier on current body size
 # it is proportional to initial size
 ranSlope <- (dat[,1] - mean(dat[,1]))/sd(dat[,1]) * 0.75 
 
+# fill matix with body sizes
 for (t in 1:(nOcc-1)){
   seas <- (t - 2) %% nSeasons # (t-2) to offset season so occ1=seas3
   if(seas == 0) seas <- nSeasons
@@ -150,8 +156,8 @@ cat("
   
       expectedGR[ evalRows[i] ]  <- 
         grBetaInt[ season[ evalRows[i] ],riverDATA[ evalRows[i] ] ] 
-      + grBeta[ 1, season[ evalRows[i] ],riverDATA[ evalRows[i] ] ] * stdLength[ evalRows[ i ] ]
-      + grBeta[ 2, season[ evalRows[i] ],riverDATA[ evalRows[i] ] ] * isYOY[ evalRows[ i ] ]
+      + grBeta[ season[ evalRows[i] ],riverDATA[ evalRows[i] ], 1 ] * stdLength[ evalRows[ i ] ]
+   #   + grBeta[ season[ evalRows[i] ],riverDATA[ evalRows[i] ], 2 ] * isYOY[ evalRows[ i ] ]
 
       expectedGRSigma[ evalRows[i] ] <- grSigmaBeta[ season[ evalRows[i] ],riverDATA[ evalRows[i] ] ]   
     }
@@ -171,7 +177,7 @@ cat("
           grBetaInt[ s,r ] ~ dnorm( 0,0.0001 )
          
         for(i in 1:2){
-           grBeta[ i,s,r ] ~ dnorm( 0,0.0001 )
+           grBeta[ s,r,i ] ~ dnorm( 0,0.0001 )
         }
       }
     }
@@ -196,7 +202,7 @@ data <- list( lengthDATA=d$lNA,
             )
 
 inits <- function(){
-  list(grBetaInt=array(rnorm(2*nSeasons*nRivers,0,2.25),c(2,nSeasons,nRivers)))
+  list(grBetaInt=array(rnorm(nSeasons*nRivers,0,2.25),c(nSeasons,nRivers)))
 }
 
 params <- c("grBetaInt","grBeta","grSigmaBeta")#, "riverDATA")
@@ -207,10 +213,11 @@ out <- jags(data = data,
             model.file = "gr.jags",
             n.chains = 3,
             n.adapt = 1000, #1000
-            n.iter = 1000, # with pNA>0.25, need to run 50,000 iters, otherwise rhats are >1.1
-            n.burnin = 500,
+            n.iter = 2000, # with pNA>0.25, need to run 50,000 iters, otherwise rhats are >1.1
+            n.burnin = 1000,
             n.thin = 4,
             parallel = TRUE
            )
 
+out
 
