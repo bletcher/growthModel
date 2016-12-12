@@ -4,20 +4,21 @@ library(jagsUI)
 
 rm(list = ls()) 
 
+# code to run the growth model function is at bottom
+
 # truncated normal dist
 rtnorm <- function(n, mean, sd, a = -Inf, b = Inf){
   qnorm(runif(n, pnorm(a, mean, sd), pnorm(b, mean, sd)), mean, sd)
 }
 
-
-runGrowthModel <- function(iterToUse, firstNonBurnIter, chainToUse, simInfo, out){
+runGrowthModel <- function(iterToUse, firstNonBurnIter, chainToUse, simInfo, grDir, out){
 
   nInd <- simInfo$nInd
   nOcc <- simInfo$nOcc
   nRivers <- simInfo$nRivers
   nSeasons <- simInfo$nSeasons
 
-# define river data
+# get river data
 rivIn <- out[chainToUse]$sims.list$riverDATA[ firstNonBurnIter + iterToUse -1,]
 # hold in matrix format for growth calculations
 r <- matrix(rivIn, nrow=nInd, byrow=TRUE)
@@ -146,7 +147,7 @@ params <- c("grBetaInt","grBeta","grSigmaBeta")#, "length")
 outGR <- jags(data = data,
             inits = inits,
             parameters.to.save = params,
-            model.file = "grWMoveMod.jags",
+            model.file = paste0(grDir,"grWMoveMod.jags"),
             n.chains = 3,
             n.adapt = 1000, #1000
             n.iter = 2000, # with pNA>0.25, need to run 50,000 iters, otherwise rhats are >1.1
@@ -161,8 +162,13 @@ outGR <- jags(data = data,
 
 ## Run iterations from the movement model ##
 
+moveDir <- "/home/ben/movementModel/"
+grDir <- "/home/ben/growthModel/"
+setwd(grDir)
+
 # load output from movement model
-load ("/home/ben/movementModel/simMoveOut.RData")
+
+load (paste0(moveDir,"simMoveOut.RData"))
 
 chainToUse <- 1
 firstNonBurnIter <- (out$mcmc.info$n.burn/out$mcmc.info$n.thin)+1
@@ -175,7 +181,7 @@ for (iter in itersToUse){
   ii <- ii+1
   print(c(ii,iter))
   # saving into a list for now, could also concat a dataframe with identifiers
-  runOverIters[[ii]] <- runGrowthModel(iter, firstNonBurnIter, chainToUse, simInfo, out)
+  runOverIters[[ii]] <- runGrowthModel(iter, firstNonBurnIter, chainToUse, simInfo, grDir out)
 }
 
 
