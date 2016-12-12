@@ -179,9 +179,9 @@ runOverIters <- list()
 ii <- 0
 for (iter in itersToUse){
   ii <- ii+1
-  print(c(ii,iter))
+  print(c(ii,iter, Sys.time()))
   # saving into a list for now, could also concat a dataframe with identifiers
-  runOverIters[[ii]] <- runGrowthModel(iter, firstNonBurnIter, chainToUse, simInfo, grDir out)
+  runOverIters[[ii]] <- runGrowthModel(iter, firstNonBurnIter, chainToUse, simInfo, grDir, out)
 }
 
 
