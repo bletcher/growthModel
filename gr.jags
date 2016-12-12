@@ -1,0 +1,91 @@
+
+  model {
+    
+    ############################
+    # Variable standardization #
+    ############################
+  
+    ############ standardized length for sizeBetas
+    for( i in 1:(nEvalRows) ){ 
+      stdLength[ evalRows[i] ] <-  ( length[ evalRows[i] ] - lengthMean[ season[ evalRows[i]],riverDATA[ evalRows[i] ] ] ) / 
+        lengthSD[ season[ evalRows[i]],riverDATA[ evalRows[i] ] ]
+  
+    }
+
+    for( i in 1:( nLastObsRows ) ){  
+      stdLength[ lastObsRows[ i ] ] <-  ( length[ lastObsRows[i] ] - lengthMean[ season[ lastObsRows[i]],riverDATA[ lastObsRows[i] ] ] ) / 
+        lengthSD[ season[ lastObsRows[i]],riverDATA[ lastObsRows[i] ] ]
+    }
+
+    ############################
+    ###### YOY variable ########
+    ############################ 
+    # 1 for YOY, 2 for not YOY
+  
+    for( i in 1:nEvalRows ){
+      isYOY1[ evalRows[ i ] ] ~ dinterval( length[ evalRows[ i ] ], 
+                                           cutoffYOYDATA[ season[ evalRows[i] ],riverDATA[ evalRows[ i ] ] ] #, year[ evalRows[ i ] ] ] 
+      ) 
+       isYOY[ evalRows[ i ] ] <- isYOY1[ evalRows[ i ] ] + 1
+  
+    }
+  
+    # isYOY for last observation for each individual
+    for( i in 1:( nLastObsRows ) ){ 
+  
+      isYOY1[ lastObsRows[ i ] ] ~ dinterval( length[ lastObsRows[ i ] ], 
+                                           cutoffYOYDATA[ season[ lastObsRows[i] ],riverDATA[ lastObsRows[ i ] ] ] #, year[ lastObsRows[ i ] ] ] 
+      )
+      isYOY[ lastObsRows[ i ] ] <- isYOY1[ lastObsRows[ i ] ] + 1
+    } 
+
+
+    ############################
+    ###### growth model ########
+    ############################
+
+    for( i in 1:nFirstObsRows ){
+      length[ firstObsRows[i] ] ~ dnorm( 65,0.001 )   
+      lengthDATA[ firstObsRows[i] ] ~ dnorm( length[ firstObsRows[i] ],9 ) # length measurement error
+    }
+
+    for( i in 1:nEvalRows ){
+      
+      length[ evalRows[i]+1 ] <- length[ evalRows[i] ] + gr[ evalRows[i] ] 
+      
+      lengthDATA[ evalRows[i] + 1 ] ~ dnorm( length[ evalRows[i] + 1 ], 9 ) # length measurement error 
+      
+      gr[ evalRows[i] ] ~ dnorm( expectedGR[ evalRows[i] ], 
+                                 1/expectedGRSigma[ evalRows[i] ]^2 
+                               )
+  
+      expectedGR[ evalRows[i] ]  <- 
+        grBetaInt[ season[ evalRows[i] ],riverDATA[ evalRows[i] ] ] 
+      + grBeta[ season[ evalRows[i] ],riverDATA[ evalRows[i] ], 1 ] * stdLength[ evalRows[ i ] ]
+   #   + grBeta[ season[ evalRows[i] ],riverDATA[ evalRows[i] ], 2 ] * isYOY[ evalRows[ i ] ]
+
+      expectedGRSigma[ evalRows[i] ] <- grSigmaBeta[ season[ evalRows[i] ],riverDATA[ evalRows[i] ] ]   
+    }
+
+  ############## Growth Priors ###############
+ 
+    for( r in 1:( nRivers ) ){
+
+#      grBetaInt[ 1,r ] ~ dnorm( 8, 0.01 )
+#      grBetaInt[ 2,r ] ~ dnorm( 4, 0.01 )
+#      grBetaInt[ 3,r ] ~ dnorm( 25, 0.01 )
+#      grBetaInt[ 4,r ] ~ dnorm( 10, 0.01 )
+
+      for( s in 1:4 ){   
+        
+        grSigmaBeta[ s,r ] ~ dgamma(0.001,0.001)   
+          grBetaInt[ s,r ] ~ dnorm( 0,0.0001 )
+         
+        for(i in 1:2){
+           grBeta[ s,r,i ] ~ dnorm( 0,0.0001 )
+        }
+      }
+    }
+  
+} # model
+    
