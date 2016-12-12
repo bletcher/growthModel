@@ -10,7 +10,7 @@ rtnorm <- function(n, mean, sd, a = -Inf, b = Inf){
 }
 
 
-runGrowthModel <- function(iterToUse, firstNonBurnIter, chainToUse, simInfo){
+runGrowthModel <- function(iterToUse, firstNonBurnIter, chainToUse, simInfo, out){
 
   nInd <- simInfo$nInd
   nOcc <- simInfo$nOcc
@@ -141,12 +141,12 @@ inits <- function(){
   list(grBetaInt=array(rnorm(nSeasons*nRivers,0,2.25),c(nSeasons,nRivers)))
 }
 
-params <- c("grBetaInt","grBeta","grSigmaBeta")#, "riverDATA")
+params <- c("grBetaInt","grBeta","grSigmaBeta")#, "length")
 
 outGR <- jags(data = data,
             inits = inits,
             parameters.to.save = params,
-            model.file = "gr.jags",
+            model.file = "grWMoveMod.jags",
             n.chains = 3,
             n.adapt = 1000, #1000
             n.iter = 2000, # with pNA>0.25, need to run 50,000 iters, otherwise rhats are >1.1
@@ -174,7 +174,8 @@ ii <- 0
 for (iter in itersToUse){
   ii <- ii+1
   print(c(ii,iter))
-  runOverIters[[ii]] <- runGrowthModel(iter, firstNonBurnIter, chainToUse, simInfo)
+  # saving into a list for now, could also concat a dataframe with identifiers
+  runOverIters[[ii]] <- runGrowthModel(iter, firstNonBurnIter, chainToUse, simInfo, out)
 }
 
 
